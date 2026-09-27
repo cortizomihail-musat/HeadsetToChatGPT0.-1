@@ -1,4 +1,4 @@
-# HeadsetToChatGPT v0.2
+# HeadsetToChatGPT v0.3
 
 Bridge Android experimental pentru a testa traseul:
 
@@ -58,3 +58,30 @@ Workflow-ul `.github/workflows/android.yml` compilează automat APK-ul la push p
 - Lansarea normală este încercată și dacă ACTION_ASSIST aruncă o excepție.
 - Sesiunea și interfața rulează în același proces pentru diagnosticul SharedPreferences.
 - Testează întâi cu telefonul deblocat; lansarea de pe ecranul blocat nu este activată.
+
+## v0.3: lansarea vocii și diagnostic
+
+- Încearcă explicit com.openai.voice.assistant.AssistantActivity, fără ACTION_ASSIST,
+  numai dacă activitatea există, este activă, exportată și accesibilă.
+- Apoi încearcă VOICE_ASSIST, ASSIST și lansarea normală a aplicației.
+- Componenta vocală este o integrare experimentală, nu un API public garantat OpenAI.
+  Referință de implementare și diferența observată între cele două activități:
+  https://github.com/keymapperorg/KeyMapper/issues/1733#issuecomment-3039506479
+- Android acceptând o cerere de lansare NU confirmă că vocea ascultă.
+- Păstrează 20 de evenimente locale, cu ruta folosită și sursa invocării.
+- Nu distruge imediat sesiunea după lansarea activității asistent.
+- Nu activează componente dezactivate, nu ocolește permisiuni și nu automatizează ecranul.
+
+### Test pe telefon
+
+1. Instalează v0.3 și verifică numărul versiunii afișate.
+2. Cu telefonul deblocat apasă «Test: pornește vocea ChatGPT».
+3. Confirmă vizual dacă începe vocea; cererea trimisă nu este dovada pornirii ei.
+4. Revino, apoi testează separat gestul asistentului telefonului și butonul Jabra.
+5. Apasă «Copiază diagnosticul». TEST MANUAL și Voice session/PROXY sunt surse distincte.
+6. Dacă apare LAUNCHER, s-a folosit deschiderea normală și vocea nu este confirmată.
+
+GitHub Actions generează un APK debug. Cheia debug poate diferi între rulări.
+Dacă Android refuză actualizarea din cauza semnăturii, dezinstalează numai
+HeadsetToChatGPT și instalează noul APK, apoi reselectează asistentul.
+Nu dezinstala aplicația ChatGPT.

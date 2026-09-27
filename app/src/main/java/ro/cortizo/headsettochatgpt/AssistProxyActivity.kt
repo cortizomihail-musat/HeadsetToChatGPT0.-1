@@ -15,8 +15,8 @@ class AssistProxyActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Log.i(TAG, "ACTION_ASSIST received by proxy activity")
-        Diagnostics.record(this, "ACTION_ASSIST proxy invoked")
+        Log.i(TAG, "Assistant intent received: ${intent?.action}")
+        Diagnostics.record(this, "PROXY: ${intent?.action}")
         ChatGptLauncher.launch(this, assistantLayer = false)
         finish()
     }

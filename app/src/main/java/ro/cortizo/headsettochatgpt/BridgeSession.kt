@@ -23,14 +23,15 @@ class BridgeSession(private val appContext: Context) : VoiceInteractionSession(a
             if (showFlags and SHOW_SOURCE_ACTIVITY != 0) add("ACTIVITY")
         }.ifEmpty { listOf("UNKNOWN") }.joinToString("+")
 
-        Log.i(TAG, "Voice session shown. flags=$showFlags source=$source args=$args")
+        Log.i(TAG, "Voice session shown. flags=$showFlags source=$source ")
         Diagnostics.record(appContext, "Voice session: $source; flags=$showFlags")
 
         val launched = ChatGptLauncher.launch(appContext, assistantLayer = true, session = this)
         Log.i(TAG, "ChatGPT launch result=$launched")
         Diagnostics.record(appContext, "ChatGPT launch result=$launched; source=$source")
 
-        finish()
+        // Do not immediately destroy the assistant session after launch.
+        if (!launched) finish()
     }
 
     companion object {

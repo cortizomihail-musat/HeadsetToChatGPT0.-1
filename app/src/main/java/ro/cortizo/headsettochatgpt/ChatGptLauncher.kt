@@ -1,5 +1,6 @@
 package ro.cortizo.headsettochatgpt
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,41 +11,94 @@ object ChatGptLauncher {
     private const val TAG = "HeadsetToChatGPT"
     private const val CHATGPT_PACKAGE = "com.openai.chatgpt"
 
-    fun launch(context: Context, assistantLayer: Boolean, session: VoiceInteractionSession? = null): Boolean {
-        // 1) Preferăm ACTION_ASSIST către ChatGPT. Dacă aplicația expune un handler de asistent,
-        //    acesta are cele mai mari șanse să reproducă lansarea făcută de butonul telefonului.
-        val assistIntent = Intent(Intent.ACTION_ASSIST).apply {
-            setPackage(CHATGPT_PACKAGE)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    // Observed in ChatGPT builds, NOT a stable public API.
+    // Never enable a disabled component or try to access an unexported one.
+    private const val VOICE_ACTIVITY = "com.openai.voice.assistant.AssistantActivity"
 
+    fun launch(
+        context: Context,
+        assistantLayer: Boolean,
+        session: VoiceInteractionSession? = null
+    ): Boolean {
         val pm = context.packageManager
-        val assistResolved = pm.resolveActivity(assistIntent, PackageManager.MATCH_DEFAULT_ONLY) != null
-        if (assistResolved) {
-            Log.i(TAG, "Launching ChatGPT through ACTION_ASSIST")
-            val started = runCatching {
-                if (assistantLayer && session != null) {
-                    session.startAssistantActivity(assistIntent)
-                } else {
-                    context.startActivity(assistIntent)
-                }
-            }
-            if (started.isSuccess) return true
-            Log.w(TAG, "ACTION_ASSIST failed; trying launcher", started.exceptionOrNull())
+        val voiceComponent = ComponentName(CHATGPT_PACKAGE, VOICE_ACTIVITY)
+        val voiceInfo = try {
+            pm.getActivityInfo(voiceComponent, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        val permitted = voiceInfo?.permission.let {
+            it == null || context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
+        }
+        if (voiceInfo != null && voiceInfo.exported && voiceInfo.enabled &&
+            voiceInfo.applicationInfo.enabled && permitted
+        ) {
+            // No ACTION_ASSIST: it can route through ChatGPT's generic proxy.
+            if (tryStart(context, Intent().setComponent(voiceComponent),
+                    "VOICE_ACTIVITY", assistantLayer, session)) return true
+        } else {
+            Diagnostics.record(context, "VOICE_ACTIVITY indisponibilă sau neaccesibilă")
         }
 
-        // 2) Fallback: launcher intent normal pentru aplicația oficială ChatGPT.
-        val launchIntent = pm.getLaunchIntentForPackage(CHATGPT_PACKAGE)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        } ?: return false
-
-        Log.i(TAG, "ACTION_ASSIST unavailable; launching ChatGPT normally")
-        return runCatching {
-            if (assistantLayer && session != null) {
-                session.startAssistantActivity(launchIntent)
+        for ((action, route) in listOf(
+            Intent.ACTION_VOICE_ASSIST to "VOICE_ASSIST",
+            Intent.ACTION_ASSIST to "ASSIST"
+        )) {
+            val intent = Intent(action).setPackage(CHATGPT_PACKAGE)
+            val info = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
+            if (info != null && info.exported && info.enabled &&
+                info.applicationInfo.enabled
+            ) {
+                if (tryStart(context, intent, route, assistantLayer, session)) return true
             } else {
-                context.startActivity(launchIntent)
+                Diagnostics.record(context, "$route fără activitate accesibilă")
             }
-        }.isSuccess
+        }
+
+        Diagnostics.record(context, "Fallback: deschidere normală; vocea NU este confirmată")
+        return launchNormal(context, assistantLayer, session)
+    }
+
+    fun launchNormal(
+        context: Context,
+        assistantLayer: Boolean = false,
+        session: VoiceInteractionSession? = null
+    ): Boolean {
+        val intent = context.packageManager.getLaunchIntentForPackage(CHATGPT_PACKAGE)
+        if (intent == null) {
+            Diagnostics.record(context, "LAUNCHER indisponibil")
+            return false
+        }
+        return tryStart(context, intent, "LAUNCHER (doar aplicația)", assistantLayer, session)
+    }
+
+    private fun tryStart(
+        context: Context,
+        intent: Intent,
+        route: String,
+        assistantLayer: Boolean,
+        session: VoiceInteractionSession?
+    ): Boolean {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            if (assistantLayer && session != null) {
+                session.startAssistantActivity(intent)
+            } else {
+                context.startActivity(intent)
+            }
+            // Acceptance by Android does not prove that ChatGPT started listening.
+            Diagnostics.record(context, "$route: cerere trimisă; verifică vocea în ChatGPT")
+            true
+        } catch (error: Exception) {
+            Log.e(TAG, "Launch failed: $route", error)
+            Diagnostics.record(context, "$route: ${error.javaClass.simpleName}")
+            false
+        }
+    }
+
+    fun installedVersion(context: Context): String = try {
+        context.packageManager.getPackageInfo(CHATGPT_PACKAGE, 0).versionName ?: "necunoscută"
+    } catch (_: PackageManager.NameNotFoundException) {
+        "neinstalat"
     }
 }

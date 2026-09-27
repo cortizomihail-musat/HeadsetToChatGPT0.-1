@@ -11,6 +11,9 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ScrollView
+import android.content.ClipData
+import android.content.ClipboardManager
 
 class MainActivity : Activity() {
 
@@ -26,7 +29,7 @@ class MainActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "HeadsetToChatGPT v0.2"
+            text = "HeadsetToChatGPT v0.3"
             textSize = 24f
         }
 
@@ -36,7 +39,10 @@ class MainActivity : Activity() {
         }
 
         statusView = TextView(this).apply { textSize = 16f }
-        diagnosticsView = TextView(this).apply { textSize = 14f }
+        diagnosticsView = TextView(this).apply {
+            textSize = 14f
+            setTextIsSelectable(true)
+        }
 
         val assistantButton = Button(this).apply {
             text = "Setează bridge-ul ca asistent implicit"
@@ -49,16 +55,37 @@ class MainActivity : Activity() {
         }
 
         val testButton = Button(this).apply {
-            text = "Test: deschide ChatGPT"
+            text = "Test: pornește vocea ChatGPT"
             setOnClickListener {
+                Diagnostics.record(this@MainActivity, "TEST MANUAL VOCE")
                 val ok = ChatGptLauncher.launch(this@MainActivity, assistantLayer = false)
-                Diagnostics.record(this@MainActivity, "Manual ChatGPT launch result=$ok")
+                refreshStatus()
                 if (!ok) {
-                    Toast.makeText(this@MainActivity, "ChatGPT nu a fost găsit.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivity, "Lansarea a eșuat. Verifică diagnosticul.", Toast.LENGTH_LONG).show()
                 }
             }
         }
 
+        val normalButton = Button(this).apply {
+            text = "Test: deschide doar aplicația"
+            setOnClickListener {
+                Diagnostics.record(this@MainActivity, "TEST MANUAL APLICAȚIE")
+                ChatGptLauncher.launchNormal(this@MainActivity)
+                refreshStatus()
+            }
+        }
+        val copyButton = Button(this).apply {
+            text = "Copiază diagnosticul"
+            setOnClickListener {
+                val report = "HeadsetToChatGPT v0.3; ChatGPT " +
+                    ChatGptLauncher.installedVersion(this@MainActivity) +
+                    "\n" + statusView.text + "\n" +
+                    Diagnostics.lastEvent(this@MainActivity)
+                getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText("Diagnostic", report))
+                Toast.makeText(this@MainActivity, "Diagnostic copiat.", Toast.LENGTH_SHORT).show()
+            }
+        }
         val refreshButton = Button(this).apply {
             text = "Reîmprospătează diagnosticul"
             setOnClickListener { refreshStatus() }
@@ -70,9 +97,11 @@ class MainActivity : Activity() {
         layout.addView(assistantButton)
         layout.addView(assistantSettingsButton)
         layout.addView(testButton)
+        layout.addView(normalButton)
+        layout.addView(copyButton)
         layout.addView(refreshButton)
         layout.addView(diagnosticsView)
-        setContentView(layout)
+        setContentView(ScrollView(this).apply { addView(layout) })
     }
 
     override fun onResume() {
@@ -87,10 +116,11 @@ class MainActivity : Activity() {
 
         statusView.text = buildString {
             append("\nChatGPT instalat: ").append(if (installed) "DA" else "NU")
+            append("\nVersiune ChatGPT: ").append(ChatGptLauncher.installedVersion(this@MainActivity))
             append("\nBridge activ ca VoiceInteractionService: ").append(if (active) "DA" else "NU")
             append("\n")
         }
-        diagnosticsView.text = "\nUltimul eveniment:\n${Diagnostics.lastEvent(this)}"
+        diagnosticsView.text = "\nUltimele evenimente (cel mai nou sus):\n${Diagnostics.lastEvent(this)}"
     }
 
     private fun requestAssistantRole() {
