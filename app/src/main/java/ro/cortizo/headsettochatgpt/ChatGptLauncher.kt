@@ -41,7 +41,7 @@ object ChatGptLauncher {
         }
 
         for ((action, route) in listOf(
-            Intent.ACTION_VOICE_ASSIST to "VOICE_ASSIST",
+            "android.intent.action.VOICE_ASSIST" to "VOICE_ASSIST",
             Intent.ACTION_ASSIST to "ASSIST"
         )) {
             val intent = Intent(action).setPackage(CHATGPT_PACKAGE)
