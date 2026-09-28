@@ -17,6 +17,7 @@ class BridgeSession(private val appContext: Context) : VoiceInteractionSession(a
         super.onShow(args, showFlags)
 
         val source = buildList {
+            if (args?.getBoolean(BridgeVoiceInteractionService.TEST_SESSION, false) == true) add("MANUAL_SESSION_TEST")
             if (showFlags and SHOW_SOURCE_PUSH_TO_TALK != 0) add("PUSH_TO_TALK")
             if (showFlags and SHOW_SOURCE_ASSIST_GESTURE != 0) add("ASSIST_GESTURE")
             if (showFlags and SHOW_SOURCE_APPLICATION != 0) add("APPLICATION")

@@ -37,24 +37,18 @@ object ChatGptLauncher {
             if (tryStart(context, Intent().setComponent(voiceComponent),
                     "VOICE_ACTIVITY", assistantLayer, session)) return true
         } else {
-            Diagnostics.record(context, "VOICE_ACTIVITY indisponibilă sau neaccesibilă")
-        }
-
-        for ((action, route) in listOf(
-            "android.intent.action.VOICE_ASSIST" to "VOICE_ASSIST",
-            Intent.ACTION_ASSIST to "ASSIST"
-        )) {
-            val intent = Intent(action).setPackage(CHATGPT_PACKAGE)
-            val info = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
-            if (info != null && info.exported && info.enabled &&
-                info.applicationInfo.enabled
-            ) {
-                if (tryStart(context, intent, route, assistantLayer, session)) return true
-            } else {
-                Diagnostics.record(context, "$route fără activitate accesibilă")
+            val reason = when {
+                voiceInfo == null -> "componenta lipsește sau este dezactivată"
+                !voiceInfo.exported -> "componenta nu este exportată"
+                !voiceInfo.enabled || !voiceInfo.applicationInfo.enabled -> "componenta este dezactivată"
+                !permitted -> "permisiune necesară: ${voiceInfo.permission}"
+                else -> "indisponibilă"
             }
+            Diagnostics.record(context, "VOICE_ACTIVITY: $reason")
         }
 
+        // An accepted ASSIST intent can open assistant setup rather than voice.
+        // Do not let this proxy swallow the normal application fallback.
         Diagnostics.record(context, "Fallback: deschidere normală; vocea NU este confirmată")
         return launchNormal(context, assistantLayer, session)
     }
@@ -87,7 +81,7 @@ object ChatGptLauncher {
                 context.startActivity(intent)
             }
             // Acceptance by Android does not prove that ChatGPT started listening.
-            Diagnostics.record(context, "$route: cerere trimisă; verifică vocea în ChatGPT")
+            Diagnostics.record(context, "$route: cerere trimisă către ${intent.component?.flattenToShortString()}; voce neconfirmată")
             true
         } catch (error: Exception) {
             Log.e(TAG, "Launch failed: $route", error)

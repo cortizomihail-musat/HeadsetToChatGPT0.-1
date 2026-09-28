@@ -11,6 +11,7 @@ import android.speech.SpeechRecognizer
  */
 class BridgeRecognitionService : RecognitionService() {
     override fun onStartListening(recognizerIntent: Intent?, listener: Callback?) {
+        Diagnostics.record(this, "RECOGNITION: cerere de dictare, nu sesiune de asistent; ERROR_CLIENT")
         listener?.error(SpeechRecognizer.ERROR_CLIENT)
     }
 

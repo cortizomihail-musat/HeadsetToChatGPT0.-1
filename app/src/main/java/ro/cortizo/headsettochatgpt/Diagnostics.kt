@@ -8,7 +8,7 @@ import java.util.Locale
 object Diagnostics {
     private const val PREFS = "diagnostics"
     private const val KEY_HISTORY = "history"
-    private const val MAX_EVENTS = 20
+    private const val MAX_EVENTS = 40
 
     @Synchronized
     fun record(context: Context, event: String) {
@@ -23,5 +23,5 @@ object Diagnostics {
     fun lastEvent(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_HISTORY, null)
-            ?: "Niciun eveniment v0.3 primit încă."
+            ?: "Niciun eveniment primit încă."
 }

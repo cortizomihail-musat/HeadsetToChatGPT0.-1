@@ -1,87 +1,71 @@
-# HeadsetToChatGPT v0.3
+# HeadsetToChatGPT v0.4
 
-Bridge Android experimental pentru a testa traseul:
+Bridge Android experimental: Jabra → asistentul Android → HeadsetToChatGPT → aplicația ChatGPT.
+Deschiderea aplicației nu confirmă pornirea conversației vocale.
 
-`Jabra Voice Command -> Android Assistant -> HeadsetToChatGPT -> ChatGPT`
+## Corecția v0.4
 
-## Ce s-a schimbat în v0.2
+v0.3 accepta răspunsul la `ACTION_ASSIST` ca final al încercării de lansare.
+Pe telefonul testat, vocea nu pornește, iar comanda Jabra deschide setările
+asistentului chiar și cu ChatGPT selectat direct. Acest rezultat nu dovedește
+că evenimentul Jabra ajunge la bridge.
 
-- implementează `VoiceInteractionService`, deci poate candida pentru rolul Android Assistant;
-- adaugă și un `ACTION_ASSIST` proxy, ca fallback pentru ROM-uri/OEM-uri care invocă asistentul prin Intent;
-- redirecționează explicit către pachetul oficial `com.openai.chatgpt`;
-- salvează ultimul eveniment primit pentru diagnostic;
-- interfața arată dacă bridge-ul este serviciul VoiceInteraction activ;
-- include GitHub Actions pentru compilarea automată a APK-ului.
+- Elimină trimiterile către proxy-urile generice `ASSIST` / `VOICE_ASSIST` din
+  lansatorul ChatGPT. Dacă intrarea vocală experimentală nu poate fi lansată,
+  încearcă imediat launcher-ul aplicației oficiale `com.openai.chatgpt`.
+- Păstrează recepția comenzilor ASSIST / VOICE_ASSIST / VOICE_COMMAND în bridge.
+- Distinge lipsa/dezactivarea componentei vocale de lipsa exportării/permisiunii.
+- Adaugă **Test: comandă prin bridge**, care cere `showSession` numai serviciului
+  activ și inițializat de Android. Acest test nu simulează Bluetooth, dar verifică
+  sesiunea și lansarea ChatGPT fără să depindă de comanda căștilor.
+- Înregistrează crearea/eșecul sesiunii, sursa manuală a testului și apelurile
+  serviciului de recunoaștere. Acesta din urmă nu implementează dictarea.
+- Afișează versiunea reală din APK și păstrează 40 de evenimente locale.
 
-## Test pe HONOR
+## Instalare și test pe HONOR
 
-1. Compilează și instalează APK-ul debug.
-2. Deschide **HeadsetToChatGPT**.
-3. Apasă **Setează bridge-ul ca asistent implicit**.
-4. Dacă HONOR deschide lista manuală, alege **HeadsetToChatGPT** la aplicația de asistent digital.
-5. Ieși pe Home.
-6. Cu Jabra Elite 8 Active conectate și comanda de asistent configurată pe gestul ales, execută gestul.
-7. Dacă bridge-ul primește evenimentul, ar trebui să deschidă ChatGPT.
-8. Revino în HeadsetToChatGPT și apasă **Reîmprospătează diagnosticul** pentru a vedea ultima sursă detectată.
+1. Instalează APK-ul și verifică titlul **v0.4**. APK-urile debug generate în rulări
+   diferite pot avea semnături diferite: dacă actualizarea este refuzată, dezinstalează
+   numai HeadsetToChatGPT, reinstalează și selectează din nou asistentul.
+2. În Jabra Sound+ alege **Android default**; în setările telefonului alege
+   **HeadsetToChatGPT** ca aplicație Asistent pentru testul bridge-ului.
+3. Cu telefonul deblocat, apasă **Test: comandă prin bridge**. Notează dacă apare
+   ChatGPT, vocea, setările sau nimic.
+4. Revino pe Home și execută gestul de asistent configurat pe căști.
+5. Revino în bridge și apasă **Copiază diagnosticul**. Trimite textul împreună cu
+   rezultatul celor două teste.
 
-## Dacă nu apare în lista de asistenți
-
-Aplicația declară două mecanisme acceptate de Android pentru rolul Assistant: un `VoiceInteractionService` și un handler `ACTION_ASSIST`. Dacă HONOR nu o listează, verifică instalarea și diagnosticul înainte de a atribui problema sistemului MagicOS.
-
-## Build în Android Studio
-
-- JDK 17
-- Android SDK 35
-- Android Gradle Plugin 8.7.3
-- Kotlin 2.0.21
-
-Deschide folderul proiectului în Android Studio, lasă Gradle Sync să termine, apoi:
-
-`Build > Build APK(s)`
-
-APK-ul debug va fi în:
-
-`app/build/outputs/apk/debug/app-debug.apk`
-
-## Build prin GitHub Actions
-
-Workflow-ul `.github/workflows/android.yml` compilează automat APK-ul la push pe `main` sau manual prin **Actions > Build Android APK > Run workflow**. APK-ul apare ca artifact `HeadsetToChatGPT-debug-apk`.
+`MANUAL_SESSION_TEST` marchează testul intern, nu o comandă Jabra.
+`VoiceInteractionService ready` confirmă inițializarea, nu apăsarea căștii.
+`SESSION CREATED`, `Voice session` și `PROXY` arată ce intrare a fost folosită.
+`SESSION FAILED` arată un eșec raportat de Android.
+`LAUNCHER` înseamnă deschiderea obișnuită a aplicației; vocea rămâne neconfirmată.
+Absența evenimentelor după apăsare necesită investigarea traseului Android/Jabra;
+nu este rezolvată prin schimbarea adresei site-ului sau a launcher-ului.
 
 ## Limitări
 
-- Nu modifică aplicația oficială ChatGPT.
-- Nu garantează că ChatGPT va intra direct în Voice; v0.2 validează mai întâi lansarea din căști.
-- Comportamentul poate diferi pe MagicOS față de Android standard.
+- Intrarea `com.openai.voice.assistant.AssistantActivity` este experimentală,
+  observată în anumite versiuni ChatGPT, nu un API public stabil OpenAI.
+- Nu activează componente dezactivate, nu accesează componente neexportate,
+  nu ocolește permisiuni și nu automatizează apăsări pe ecran.
+- Bridge-ul nu înregistrează audio. Testul sesiunii nu cere textul ecranului sau capturi.
+- Testează cu telefonul deblocat; pornirea de pe ecranul blocat nu este implementată.
+- Nici acceptarea unui Intent, nici un build reușit nu dovedesc că vocea ascultă.
+- v0.4 corectează fallback-ul și permite localizarea problemei; nu pretinde că
+  rezolvă rutarea butonului Jabra pe toate versiunile MagicOS.
 
-## Corecții incluse
+Referințe:
+- https://developer.android.com/reference/android/service/voice/VoiceInteractionService
+- https://github.com/keymapperorg/KeyMapper/issues/1733#issuecomment-3039506479
+- https://help.openai.com/en/articles/20001274-chatgpt-voice
 
-- Lansarea normală este încercată și dacă ACTION_ASSIST aruncă o excepție.
-- Sesiunea și interfața rulează în același proces pentru diagnosticul SharedPreferences.
-- Testează întâi cu telefonul deblocat; lansarea de pe ecranul blocat nu este activată.
+## Compilare
 
-## v0.3: lansarea vocii și diagnostic
+JDK 17, Android SDK 35, AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9.
 
-- Încearcă explicit com.openai.voice.assistant.AssistantActivity, fără ACTION_ASSIST,
-  numai dacă activitatea există, este activă, exportată și accesibilă.
-- Apoi încearcă VOICE_ASSIST, ASSIST și lansarea normală a aplicației.
-- Componenta vocală este o integrare experimentală, nu un API public garantat OpenAI.
-  Referință de implementare și diferența observată între cele două activități:
-  https://github.com/keymapperorg/KeyMapper/issues/1733#issuecomment-3039506479
-- Android acceptând o cerere de lansare NU confirmă că vocea ascultă.
-- Păstrează 20 de evenimente locale, cu ruta folosită și sursa invocării.
-- Nu distruge imediat sesiunea după lansarea activității asistent.
-- Nu activează componente dezactivate, nu ocolește permisiuni și nu automatizează ecranul.
+`gradle :app:assembleDebug --stacktrace`
 
-### Test pe telefon
-
-1. Instalează v0.3 și verifică numărul versiunii afișate.
-2. Cu telefonul deblocat apasă «Test: pornește vocea ChatGPT».
-3. Confirmă vizual dacă începe vocea; cererea trimisă nu este dovada pornirii ei.
-4. Revino, apoi testează separat gestul asistentului telefonului și butonul Jabra.
-5. Apasă «Copiază diagnosticul». TEST MANUAL și Voice session/PROXY sunt surse distincte.
-6. Dacă apare LAUNCHER, s-a folosit deschiderea normală și vocea nu este confirmată.
-
-GitHub Actions generează un APK debug. Cheia debug poate diferi între rulări.
-Dacă Android refuză actualizarea din cauza semnăturii, dezinstalează numai
-HeadsetToChatGPT și instalează noul APK, apoi reselectează asistentul.
-Nu dezinstala aplicația ChatGPT.
+Workflow-ul `.github/workflows/android.yml` compilează la push pe `main` sau manual
+prin **Actions → Build Android APK → Run workflow**. Artifactul ZIP
+`HeadsetToChatGPT-debug-apk` conține `app-debug.apk`.

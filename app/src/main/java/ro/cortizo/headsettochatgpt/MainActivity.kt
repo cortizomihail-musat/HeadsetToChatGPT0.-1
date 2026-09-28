@@ -5,6 +5,7 @@ import android.app.role.RoleManager
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
+import android.os.Build
 import android.provider.Settings
 import android.service.voice.VoiceInteractionService
 import android.widget.Button
@@ -29,12 +30,12 @@ class MainActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "HeadsetToChatGPT v0.3"
+            text = "HeadsetToChatGPT v${bridgeVersion()}"
             textSize = 24f
         }
 
         val explanation = TextView(this).apply {
-            text = "\nBridge experimental: comanda de asistent primită de Android este redirecționată către aplicația oficială ChatGPT.\n"
+            text = "\nDeschide ChatGPT când Android transmite comanda către bridge. Încearcă vocea experimental; dacă nu este accesibilă, deschide aplicația. Vocea nu este garantată.\n"
             textSize = 16f
         }
 
@@ -55,13 +56,24 @@ class MainActivity : Activity() {
         }
 
         val testButton = Button(this).apply {
-            text = "Test: pornește vocea ChatGPT"
+            text = "Test direct: voce sau aplicație"
             setOnClickListener {
                 Diagnostics.record(this@MainActivity, "TEST MANUAL VOCE")
                 val ok = ChatGptLauncher.launch(this@MainActivity, assistantLayer = false)
                 refreshStatus()
                 if (!ok) {
                     Toast.makeText(this@MainActivity, "Lansarea a eșuat. Verifică diagnosticul.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        val sessionButton = Button(this).apply {
+            text = "Test: comandă prin bridge"
+            setOnClickListener {
+                val requested = BridgeVoiceInteractionService.testSession(this@MainActivity)
+                refreshStatus()
+                if (!requested) {
+                    Toast.makeText(this@MainActivity, "Testul nu a pornit. Vezi diagnosticul.", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -77,8 +89,10 @@ class MainActivity : Activity() {
         val copyButton = Button(this).apply {
             text = "Copiază diagnosticul"
             setOnClickListener {
-                val report = "HeadsetToChatGPT v0.3; ChatGPT " +
+                refreshStatus()
+                val report = "HeadsetToChatGPT v${bridgeVersion()}; ChatGPT " +
                     ChatGptLauncher.installedVersion(this@MainActivity) +
+                    "\nTelefon: ${Build.MANUFACTURER} ${Build.MODEL}; Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})" +
                     "\n" + statusView.text + "\n" +
                     Diagnostics.lastEvent(this@MainActivity)
                 getSystemService(ClipboardManager::class.java)
@@ -96,6 +110,7 @@ class MainActivity : Activity() {
         layout.addView(statusView)
         layout.addView(assistantButton)
         layout.addView(assistantSettingsButton)
+        layout.addView(sessionButton)
         layout.addView(testButton)
         layout.addView(normalButton)
         layout.addView(copyButton)
@@ -109,6 +124,9 @@ class MainActivity : Activity() {
         refreshStatus()
     }
 
+    private fun bridgeVersion(): String =
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+
     private fun refreshStatus() {
         val service = ComponentName(this, BridgeVoiceInteractionService::class.java)
         val active = VoiceInteractionService.isActiveService(this, service)
@@ -118,6 +136,7 @@ class MainActivity : Activity() {
             append("\nChatGPT instalat: ").append(if (installed) "DA" else "NU")
             append("\nVersiune ChatGPT: ").append(ChatGptLauncher.installedVersion(this@MainActivity))
             append("\nBridge activ ca VoiceInteractionService: ").append(if (active) "DA" else "NU")
+            if (!active) append("\nPentru testul Jabra cu bridge, alege HeadsetToChatGPT la Aplicația Asistent.")
             append("\n")
         }
         diagnosticsView.text = "\nUltimele evenimente (cel mai nou sus):\n${Diagnostics.lastEvent(this)}"
