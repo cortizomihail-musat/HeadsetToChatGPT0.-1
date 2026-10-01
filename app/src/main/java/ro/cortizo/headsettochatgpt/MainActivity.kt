@@ -35,7 +35,7 @@ class MainActivity : Activity() {
         }
 
         val explanation = TextView(this).apply {
-            text = "\nDeschide ChatGPT când Android transmite comanda către bridge. Încearcă vocea experimental; dacă nu este accesibilă, deschide aplicația. Vocea nu este garantată.\n"
+            text = "\nRuta v0.6: Jabra / asistent Android → bridge → chatgpt.com/voice. Browser Voice este ruta principală; aplicația ChatGPT rămâne fallback.\n"
             textSize = 16f
         }
 
@@ -56,7 +56,7 @@ class MainActivity : Activity() {
         }
 
         val testButton = Button(this).apply {
-            text = "Test direct: voce sau aplicație"
+            text = "Test: ChatGPT Voice în browser"
             setOnClickListener {
                 Diagnostics.record(this@MainActivity, "TEST MANUAL VOCE")
                 val ok = ChatGptLauncher.launch(this@MainActivity, assistantLayer = false)
@@ -68,7 +68,7 @@ class MainActivity : Activity() {
         }
 
         val sessionButton = Button(this).apply {
-            text = "Test: comandă prin bridge"
+            text = "Test: comandă prin bridge → Web Voice"
             setOnClickListener {
                 val requested = BridgeVoiceInteractionService.testSession(this@MainActivity)
                 refreshStatus()
@@ -79,7 +79,7 @@ class MainActivity : Activity() {
         }
 
         val normalButton = Button(this).apply {
-            text = "Test: deschide doar aplicația"
+            text = "Test fallback: deschide aplicația ChatGPT"
             setOnClickListener {
                 Diagnostics.record(this@MainActivity, "TEST MANUAL APLICAȚIE")
                 ChatGptLauncher.launchNormal(this@MainActivity)
