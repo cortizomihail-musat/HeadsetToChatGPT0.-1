@@ -12,7 +12,7 @@ object AssistantRouting {
 
     fun inspect(context: Context) {
         Diagnostics.record(context, "ROUTE voice_service=${service(context)}")
-        for (action in listOf(Intent.ACTION_ASSIST, Intent.ACTION_VOICE_ASSIST, Intent.ACTION_VOICE_COMMAND)) {
+        for (action in listOf(Intent.ACTION_ASSIST, "android.intent.action.VOICE_ASSIST", Intent.ACTION_VOICE_COMMAND)) {
             val intent = Intent(action)
             val chosen = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo
             val handlers = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
