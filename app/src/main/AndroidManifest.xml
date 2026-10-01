@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
     <queries>
         <package android:name="com.openai.chatgpt" />
         <intent>
@@ -41,6 +46,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <service android:name=".HeadsetDiagnosticService" android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!-- Native Android assistant integration. -->
         <service

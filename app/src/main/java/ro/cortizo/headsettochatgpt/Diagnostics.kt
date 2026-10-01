@@ -8,11 +8,11 @@ import java.util.Locale
 object Diagnostics {
     private const val PREFS = "diagnostics"
     private const val KEY_HISTORY = "history"
-    private const val MAX_EVENTS = 40
+    private const val MAX_EVENTS = 200
 
     @Synchronized
     fun record(context: Context, event: String) {
-        val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val previous = prefs.getString(KEY_HISTORY, "").orEmpty()
         val lines = ("$timestamp — $event\n" + previous).lineSequence()

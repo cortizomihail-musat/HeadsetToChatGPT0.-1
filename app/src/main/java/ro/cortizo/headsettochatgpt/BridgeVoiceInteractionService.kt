@@ -29,6 +29,11 @@ class BridgeVoiceInteractionService : VoiceInteractionService() {
         Diagnostics.record(this, "SESSION FAILED: Android nu a putut afișa sesiunea bridge")
     }
 
+    override fun onLaunchVoiceAssistFromKeyguard() {
+        super.onLaunchVoiceAssistFromKeyguard()
+        Diagnostics.record(this, "KEYGUARD voice assist callback; fără lansare automată din ecran blocat")
+    }
+
     override fun onShutdown() {
         if (readyService.get() === this) readyService.clear()
         Diagnostics.record(this, "VoiceInteractionService shutdown")

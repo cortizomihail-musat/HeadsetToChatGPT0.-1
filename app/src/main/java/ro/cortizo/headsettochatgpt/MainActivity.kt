@@ -18,6 +18,7 @@ import android.content.ClipboardManager
 
 class MainActivity : Activity() {
 
+    private var pendingDiagnostic = ""
     private lateinit var statusView: TextView
     private lateinit var diagnosticsView: TextView
 
@@ -35,7 +36,7 @@ class MainActivity : Activity() {
         }
 
         val explanation = TextView(this).apply {
-            text = "\nRuta v0.6: Jabra / asistent Android → bridge → chatgpt.com/voice. Browser Voice este ruta principală; aplicația ChatGPT rămâne fallback.\n"
+            text = "\nRuta v0.7: Jabra / asistent Android → bridge → chatgpt.com/voice. Browser Voice este ruta principală; aplicația ChatGPT rămâne fallback.\n"
             textSize = 16f
         }
 
@@ -113,6 +114,19 @@ class MainActivity : Activity() {
         layout.addView(sessionButton)
         layout.addView(testButton)
         layout.addView(normalButton)
+        for (label in listOf("A Google/Gemini", "B Bridge")) {
+            layout.addView(Button(this).apply {
+                text = "START DIAGNOSTIC 30s — $label"
+                setOnClickListener { startDiagnostic(label) }
+            })
+        }
+        layout.addView(Button(this).apply {
+            text = "Oprește diagnosticul"
+            setOnClickListener { stopService(Intent(this@MainActivity, HeadsetDiagnosticService::class.java)); refreshStatus() }
+        })
+        layout.addView(TextView(this).apply {
+            text = "Alege întâi asistentul A sau B. START → ecran principal → aceeași apăsare Jabra. După 30s copiază logul și spune dacă asistentul a ascultat. Nu capturăm microfonul sau evenimentele interne Gemini."
+        })
         layout.addView(copyButton)
         layout.addView(refreshButton)
         layout.addView(diagnosticsView)
@@ -122,6 +136,38 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refreshStatus()
+    }
+
+    private fun startDiagnostic(label: String) {
+        if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            pendingDiagnostic = label
+            requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_CONNECT), 1002)
+            return
+        }
+        try {
+            startForegroundService(Intent(this, HeadsetDiagnosticService::class.java).putExtra("label", label))
+            Toast.makeText(this, "Diagnostic $label pornit pentru 30s.", Toast.LENGTH_LONG).show()
+        } catch (error: RuntimeException) {
+            Diagnostics.record(this, "Diagnostic start: ${error.javaClass.simpleName}")
+        }
+        refreshStatus()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1002) {
+            val label = pendingDiagnostic
+            pendingDiagnostic = ""
+            if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) startDiagnostic(label)
+            else Toast.makeText(this, "Diagnostic Bluetooth: permisiune refuzată.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.keyCode in listOf(android.view.KeyEvent.KEYCODE_HEADSETHOOK, android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_VOICE_ASSIST)) {
+            Diagnostics.record(this, "ACTIVITY KEY ${android.view.KeyEvent.keyCodeToString(event.keyCode)}; action=${event.action}; doar când activitatea primește evenimentul")
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun bridgeVersion(): String =
