@@ -36,7 +36,7 @@ class MainActivity : Activity() {
         }
 
         val explanation = TextView(this).apply {
-            text = "\nRuta v0.7: Jabra / asistent Android → bridge → chatgpt.com/voice. Browser Voice este ruta principală; aplicația ChatGPT rămâne fallback.\n"
+            text = "\nRuta v0.8: Jabra / asistent Android → bridge → chatgpt.com/voice. Browser Voice este ruta principală; aplicația ChatGPT rămâne fallback.\n"
             textSize = 16f
         }
 
@@ -111,6 +111,16 @@ class MainActivity : Activity() {
         layout.addView(statusView)
         layout.addView(assistantButton)
         layout.addView(assistantSettingsButton)
+        layout.addView(Button(this).apply {
+            text = "Verifică rutarea Android"
+            setOnClickListener { AssistantRouting.inspect(this@MainActivity); refreshStatus() }
+        })
+        for (own in listOf(false, true)) {
+            layout.addView(Button(this).apply {
+                text = if (own) "Test VOICE_COMMAND doar către Bridge" else "Test VOICE_COMMAND prin Android"
+                setOnClickListener { AssistantRouting.testVoiceCommand(this@MainActivity, own); refreshStatus() }
+            })
+        }
         layout.addView(sessionButton)
         layout.addView(testButton)
         layout.addView(normalButton)
@@ -139,6 +149,15 @@ class MainActivity : Activity() {
     }
 
     private fun startDiagnostic(label: String) {
+        val service = AssistantRouting.service(this)
+        val correct = if (label.startsWith("B")) service.startsWith("$packageName/")
+            else service.startsWith("com.google.android.googlequicksearchbox/")
+        if (!correct) {
+            Diagnostics.record(this, "DIAG BLOCAT $label; voice_service=$service; selectează întâi asistentul corespunzător")
+            Toast.makeText(this, "Selectează întâi " + if (label.startsWith("B")) "HeadsetToChatGPT" else "Google", Toast.LENGTH_LONG).show()
+            refreshStatus()
+            return
+        }
         if (Build.VERSION.SDK_INT >= 31 && checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             pendingDiagnostic = label
             requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_CONNECT), 1002)

@@ -9,7 +9,7 @@ class AssistProxyActivity : Activity() {
         super.onCreate(savedInstanceState)
         val action = intent?.action ?: "null"
         Log.i(TAG, "Assistant intent received: $action")
-        Diagnostics.record(this, "PROXY: action=$action flags=${intent?.flags ?: 0}")
+        Diagnostics.record(this, "PROXY: action=$action flags=${intent?.flags ?: 0}; categories=${intent?.categories}; component=${intent?.component}")
         ChatGptLauncher.launchVoiceWeb(this, assistantLayer = false)
         finish()
     }

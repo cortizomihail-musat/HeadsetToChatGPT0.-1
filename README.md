@@ -69,3 +69,10 @@ Artifactul `HeadsetToChatGPT-debug-apk` conține `app-debug.apk`.
 Serviciul temporar rămâne activ la ieșirea din aplicație, afișează notificare și se oprește după 30 secunde; poate fi oprit din notificare/aplicație. Nu înregistrează audio, nu cere audio focus/SCO, nu creează MediaSession și nu schimbă asistentul. Logul păstrează cel mult 200 de evenimente, cu milisecunde.
 
 Observă starea HFP/audio și broadcasturile livrate aplicației, setările assistant/voice_interaction_service când sunt accesibile, callbackurile Bridge și tastele livrate activității. Nu poate observa global MEDIA_BUTTON sau codul intern Google/Gemini. Broadcasturile nu autentifică proveniența unui buton. HFP/audio indică o schimbare de rută, nu dovedește ascultarea Gemini. Lipsa logurilor NU demonstrează blocarea MagicOS: poate fi nevoie de logcat/ADB pentru rutarea sistemului. Ruta WEB_VOICE din v0.6 este păstrată.
+
+
+## v0.8 — izolarea rutării Android
+
+Cu Bridge selectat și ecranul deblocat, apasă „Verifică rutarea Android”, apoi „Test VOICE_COMMAND prin Android”. Notează ce pagină se deschide. Revino și apasă „Test VOICE_COMMAND doar către Bridge”. Copiază raportul după ambele teste. Primul folosește rezolvarea implicită Android; al doilea restrânge comanda la pachetul nostru și verifică activitatea proxy. Niciun test software nu reproduce garantat ruta Bluetooth/OEM. Nu schimbăm asistentul sau ruta WEB_VOICE.
+
+START A/B verifică serviciul selectat înainte de pornire și refuză eticheta nepotrivită. Diagnosticul 30s folosește Handler: suspendarea procesorului/întârzierea procesului poate prelungi fereastra; nu este un termen exact garantat. Durata efectivă este dată de timestampurile START/STOP. Această limită rămâne de investigat.
