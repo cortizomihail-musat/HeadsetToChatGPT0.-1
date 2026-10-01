@@ -33,9 +33,18 @@ object ChatGptLauncher {
         if (voiceInfo != null && voiceInfo.exported && voiceInfo.enabled &&
             voiceInfo.applicationInfo.enabled && permitted
         ) {
-            // No ACTION_ASSIST: it can route through ChatGPT's generic proxy.
-            if (tryStart(context, Intent().setComponent(voiceComponent),
-                    "VOICE_ACTIVITY", assistantLayer, session)) return true
+            // Inside a real VoiceInteractionSession, use Android's dedicated
+            // voice-activity path. Android adds CATEGORY_VOICE and associates
+            // the launched task with this voice interaction session.
+            if (tryStart(
+                    context,
+                    Intent().setComponent(voiceComponent),
+                    "VOICE_ACTIVITY",
+                    assistantLayer,
+                    session,
+                    preferVoiceActivity = true
+                )
+            ) return true
         } else {
             val reason = when {
                 voiceInfo == null -> "componenta lipsește sau este dezactivată"
@@ -47,8 +56,6 @@ object ChatGptLauncher {
             Diagnostics.record(context, "VOICE_ACTIVITY: $reason")
         }
 
-        // An accepted ASSIST intent can open assistant setup rather than voice.
-        // Do not let this proxy swallow the normal application fallback.
         Diagnostics.record(context, "Fallback: deschidere normală; vocea NU este confirmată")
         return launchNormal(context, assistantLayer, session)
     }
@@ -63,7 +70,16 @@ object ChatGptLauncher {
             Diagnostics.record(context, "LAUNCHER indisponibil")
             return false
         }
-        return tryStart(context, intent, "LAUNCHER (doar aplicația)", assistantLayer, session)
+        // The normal launcher is deliberately not promoted to a voice activity.
+        // It remains the known-safe fallback that only opens ChatGPT.
+        return tryStart(
+            context,
+            intent,
+            "LAUNCHER (doar aplicația)",
+            assistantLayer,
+            session,
+            preferVoiceActivity = false
+        )
     }
 
     private fun tryStart(
@@ -71,21 +87,41 @@ object ChatGptLauncher {
         intent: Intent,
         route: String,
         assistantLayer: Boolean,
-        session: VoiceInteractionSession?
+        session: VoiceInteractionSession?,
+        preferVoiceActivity: Boolean
     ): Boolean {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return try {
-            if (assistantLayer && session != null) {
-                session.startAssistantActivity(intent)
-            } else {
-                context.startActivity(intent)
+            when {
+                assistantLayer && session != null && preferVoiceActivity -> {
+                    session.startVoiceActivity(intent)
+                    Diagnostics.record(
+                        context,
+                        "$route: startVoiceActivity trimis către ${intent.component?.flattenToShortString()}; așteptăm confirmarea pe telefon"
+                    )
+                }
+                assistantLayer && session != null -> {
+                    session.startAssistantActivity(intent)
+                    Diagnostics.record(
+                        context,
+                        "$route: startAssistantActivity trimis către ${intent.component?.flattenToShortString()}; voce neconfirmată"
+                    )
+                }
+                else -> {
+                    context.startActivity(intent)
+                    Diagnostics.record(
+                        context,
+                        "$route: startActivity trimis către ${intent.component?.flattenToShortString()}; voce neconfirmată"
+                    )
+                }
             }
-            // Acceptance by Android does not prove that ChatGPT started listening.
-            Diagnostics.record(context, "$route: cerere trimisă către ${intent.component?.flattenToShortString()}; voce neconfirmată")
             true
         } catch (error: Exception) {
             Log.e(TAG, "Launch failed: $route", error)
-            Diagnostics.record(context, "$route: ${error.javaClass.simpleName}")
+            Diagnostics.record(
+                context,
+                "$route: ${if (preferVoiceActivity) "startVoiceActivity " else ""}${error.javaClass.simpleName}"
+            )
             false
         }
     }
